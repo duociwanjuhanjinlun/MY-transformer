@@ -4,8 +4,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 import time
 import math
+import os
 from tqdm import tqdm
 from src.models.transformer import Transformer
+from scripts.data_loader import get_dataloaders
 
 def train_epoch(model, dataloader, criterion, optimizer, pad_idx):
     model.train()
@@ -16,9 +18,10 @@ def train_epoch(model, dataloader, criterion, optimizer, pad_idx):
         src = src.to(device)
         tgt = tgt.to(device)
         
-        # 创建mask
+        # 创建mask（修正尺寸）
         src_mask = model.create_pad_mask(src, pad_idx)
-        tgt_mask = model.generate_square_subsequent_mask(tgt.size(1)).to(device)
+        tgt_size = tgt[:, :-1].size(1)  # 使用实际输入的目标序列长度
+        tgt_mask = model.generate_square_subsequent_mask(tgt_size).to(device)
         
         # 前向传播
         optimizer.zero_grad()
@@ -46,8 +49,10 @@ def validate(model, dataloader, criterion, pad_idx):
             src = src.to(device)
             tgt = tgt.to(device)
             
+            # 创建mask（修正尺寸）
             src_mask = model.create_pad_mask(src, pad_idx)
-            tgt_mask = model.generate_square_subsequent_mask(tgt.size(1)).to(device)
+            tgt_size = tgt[:, :-1].size(1)  # 使用实际输入的目标序列长度
+            tgt_mask = model.generate_square_subsequent_mask(tgt_size).to(device)
             
             output = model(src, tgt[:, :-1], src_mask, tgt_mask)
             loss = criterion(output.contiguous().view(-1, output.size(-1)),
@@ -62,8 +67,10 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # 模型参数
-    src_vocab_size = 10000  # 根据实际数据集调整
-    tgt_vocab_size = 10000  # 根据实际数据集调整
+    # 初始 vocab_size 参数会被 data loader 返回的实际词表长度覆盖
+    vocab_size = 10000  # 建表时的上限，可调整
+    src_vocab_size = vocab_size
+    tgt_vocab_size = vocab_size
     d_model = 512
     num_heads = 8
     num_encoder_layers = 6
@@ -73,10 +80,20 @@ if __name__ == "__main__":
     dropout = 0.1
     
     # 训练参数
-    num_epochs = 10
+    num_epochs = 50
     learning_rate = 0.0001
     batch_size = 32
     pad_idx = 0
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'datasets', 'wikitext-2')
+    data_dir = os.path.abspath(data_dir)
+
+    # 使用 data_loader 来构建 dataloaders 和词表
+    tok2idx, idx2tok, train_dataloader, valid_dataloader, test_dataloader, pad_idx = \
+        get_dataloaders(data_dir, batch_size=batch_size, vocab_size=vocab_size, max_seq_length=max_seq_length)
+
+    # 使用实际词表大小来设置模型的 vocab_size
+    src_vocab_size = len(idx2tok)
+    tgt_vocab_size = len(idx2tok)
     
     # 创建模型
     model = Transformer(
@@ -114,4 +131,4 @@ if __name__ == "__main__":
         # 保存最佳模型
         if valid_loss < best_valid_loss:
             best_valid_loss = valid_loss
-            torch.save(model.state_dict(), 'best_model.pt')
+            torch.save(model.state_dict(), 'results/best_model.pt')
