@@ -49,12 +49,11 @@ class MultiHeadAttention(nn.Module):
         K = K.view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
         V = V.view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
         
-        # 应用attention机制
         x, attn = self.scaled_dot_product_attention(Q, K, V, mask)
         
         # 合并头
         x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.d_model)
         
-        # 最终的线性变换
+        # 最终线性变换
         output = self.W_o(x)
         return output, attn

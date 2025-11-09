@@ -43,9 +43,9 @@ def text_to_ids(text: str, tok2idx: dict) -> List[int]:
 def build_dataset(lines: List[str], tok2idx: dict, max_seq_length: int) -> List[Tuple[List[int], List[int]]]:
     """将文本行转换为 (src, tgt) 对，均为定长 max_seq_length 的 id 列表
 
-    改进的切分方法：将每行 tokens 按 window = max_seq_length + 1 切分，
+    将每行 tokens 按 window = max_seq_length + 1 切分，
     对每个 chunk 生成 src=chunk[:-1], tgt=chunk[1:]。如果 chunk 不足长度，
-    使用 PAD 填充。这能保证 src 与 tgt 长度一致且不会越界。
+    使用 PAD 填充。保证 src 与 tgt 长度一致且不会越界。
     """
     ids_list = [text_to_ids(line, tok2idx) for line in lines]
     samples = []

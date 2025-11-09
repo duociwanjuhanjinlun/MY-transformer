@@ -8,6 +8,8 @@ import os
 from tqdm import tqdm
 from src.models.transformer import Transformer
 from scripts.data_loader import get_dataloaders
+import matplotlib.pyplot as plt
+from datetime import datetime
 
 def train_epoch(model, dataloader, criterion, optimizer, pad_idx):
     model.train()
@@ -80,7 +82,7 @@ if __name__ == "__main__":
     dropout = 0.1
     
     # 训练参数
-    num_epochs = 50
+    num_epochs = 10
     learning_rate = 0.0001
     batch_size = 32
     pad_idx = 0
@@ -113,14 +115,16 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.98), eps=1e-9)
     
     # 训练循环
+    train_losses = []
+    valid_losses = []
     best_valid_loss = float('inf')
-    
     for epoch in range(num_epochs):
         start_time = time.time()
         
         train_loss = train_epoch(model, train_dataloader, criterion, optimizer, pad_idx)
         valid_loss = validate(model, valid_dataloader, criterion, pad_idx)
-        
+        train_losses.append(train_loss)
+        valid_losses.append(valid_loss)
         epoch_time = time.time() - start_time
         
         print(f"Epoch: {epoch+1}")
@@ -132,3 +136,18 @@ if __name__ == "__main__":
         if valid_loss < best_valid_loss:
             best_valid_loss = valid_loss
             torch.save(model.state_dict(), 'results/best_model.pt')
+    # 绘制训练曲线并保存
+    results_dir = os.path.join(os.path.dirname(__file__), '..', 'results')
+    os.makedirs(results_dir, exist_ok=True)
+    date_str = datetime.now().strftime('%Y-%m-%d')
+    fig_path = os.path.join(results_dir, f'{date_str}.png')
+    plt.figure()
+    plt.plot(train_losses, label='Train Loss')
+    plt.plot(valid_losses, label='Valid Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training & Validation Loss')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(fig_path)
+    print(f"训练曲线已保存到: {fig_path}")
