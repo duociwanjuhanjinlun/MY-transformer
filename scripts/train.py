@@ -82,7 +82,7 @@ if __name__ == "__main__":
     dropout = 0.1
     
     # 训练参数
-    num_epochs = 10
+    num_epochs = 50
     learning_rate = 0.0001
     batch_size = 32
     pad_idx = 0
